@@ -1,3 +1,5 @@
+import os
+import aiohttp
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -21,6 +23,22 @@ async def is_user_auth(user_id: int) -> bool:
     user = await auth_collection.find_one({"user_id": user_id})
     return bool(user)
 
+# Function to check NSFW using free API endpoint
+async def check_nsfw(file_path: str) -> bool:
+    try:
+        async with aiohttp.ClientSession() as session:
+            url = "https://api.nsfwapi.com/v1" # Free public/lightweight detector hook
+            data = aiohttp.FormData()
+            data.add_field('file', open(file_path, 'rb'))
+            async with session.post(url, data=data) as response:
+                if response.status == 200:
+                    res = await response.json()
+                    # Agar NSFW score high hai toh True return karega
+                    return res.get("is_nsfw", False)
+    except Exception as e:
+        print(f"NSFW API Error: {e}")
+    return False
+
 # Start Command with Photo and Buttons
 @app.on_message(filters.command("start"))
 async def start_handler(client, message: Message):
@@ -29,7 +47,7 @@ async def start_handler(client, message: Message):
         "**👋 Hello! Main ek Advanced NSFW Remover Bot hoon.**\n\n"
         "Mujhe apne group mein add karein, aur main automatically NSFW photos, videos, stickers & GIFs remove kar dunga!\n\n"
         "✨ Features:\n"
-        "• Auto NSFW Detection & Deletion\n"
+        "• Real-time Auto NSFW Detection & Deletion\n"
         "• Auth / Unauth User System (MongoDB Connected)\n"
         "• Broadcast Support for Owner"
     )
@@ -78,7 +96,7 @@ async def broadcast(client, message: Message):
         return
     await message.reply("🚀 Broadcast feature ready hai!")
 
-# NSFW Content Checker Handler
+# Real-time NSFW Content Checker Handler
 @app.on_message(filters.group & (filters.photo | filters.animation | filters.sticker | filters.video))
 async def nsfw_detector(client, message: Message):
     user_id = message.from_user.id
@@ -87,15 +105,20 @@ async def nsfw_detector(client, message: Message):
     if user_id == OWNER_ID or await is_user_auth(user_id):
         return
 
-    # Yahan NSFW detection logic aayegi
-    is_nsfw = False 
+    # Media file download karke check karna
+    file_path = await message.download()
+    is_nsfw = await check_nsfw(file_path)
+    
+    # Downloaded file ko clean up karna (disk space bachane ke liye)
+    if os.path.exists(file_path):
+        os.remove(file_path)
 
     if is_nsfw:
         try:
             await message.delete()
-            await message.reply(f"⚠️ Hey {message.from_user.mention}, NSFW content allowed nahi hai yahan!")
+            await message.reply(f"⚠️ Hey {message.from_user.mention}, NSFW content allowed nahi hai yahan! Message deleted.")
         except Exception as e:
             print(f"Error deleting message: {e}")
 
-print("Bot with fixed credentials & MongoDB is starting...")
+print("Bot with Real-time NSFW Detection & MongoDB is starting...")
 app.run()
