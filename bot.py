@@ -1,16 +1,25 @@
 import os
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message
+from motor.motor_asyncio import AsyncIOMotorClient
 
 API_ID = int(os.environ.get("API_ID", 0))
 API_HASH = os.environ.get("API_HASH", "")
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
 OWNER_ID = int(os.environ.get("OWNER_ID", 0))
+MONGO_URL = os.environ.get("MONGO_URL", "")
+
+# MongoDB Database Connection
+mongo_client = AsyncIOMotorClient(MONGO_URL)
+db = mongo_client["NSFW_Remover_Bot"]
+auth_collection = db["auth_users"]
 
 app = Client("NSFW_Bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
-# Authorized users ka set
-AUTH_USERS = set()
+# Helper function to check if user is auth
+async def is_user_auth(user_id: int) -> bool:
+    user = await auth_collection.find_one({"user_id": user_id})
+    return bool(user)
 
 # Start Command with Photo and Buttons
 @app.on_message(filters.command("start"))
@@ -21,7 +30,7 @@ async def start_handler(client, message: Message):
         "Mujhe apne group mein add karein, aur main automatically NSFW photos, videos, stickers & GIFs remove kar dunga!\n\n"
         "✨ Features:\n"
         "• Auto NSFW Detection & Deletion\n"
-        "• Auth / Unauth User System\n"
+        "• Auth / Unauth User System (MongoDB Connected)\n"
         "• Broadcast Support for Owner"
     )
     buttons = InlineKeyboardMarkup([
@@ -40,8 +49,11 @@ async def start_handler(client, message: Message):
 async def auth_user(client, message: Message):
     if message.reply_to_message:
         user_id = message.reply_to_message.from_user.id
-        AUTH_USERS.add(user_id)
-        await message.reply(f"✅ User `{user_id}` ko Authorized kar diya gaya hai. Ab iska content delete nahi hoga.")
+        if await is_user_auth(user_id):
+            await message.reply(f"⚠️ Yeh user pehle se hi Authorized hai!")
+        else:
+            await auth_collection.insert_one({"user_id": user_id})
+            await message.reply(f"✅ User `{user_id}` ko successfully Authorized kar diya gaya hai.")
     else:
         await message.reply("⚠️ Kisi user ke message ko reply karke `/auth` likhein.")
 
@@ -50,8 +62,11 @@ async def auth_user(client, message: Message):
 async def unauth_user(client, message: Message):
     if message.reply_to_message:
         user_id = message.reply_to_message.from_user.id
-        AUTH_USERS.discard(user_id)
-        await message.reply(f"❌ User `{user_id}` ko Unauthorize kar diya gaya hai.")
+        if not await is_user_auth(user_id):
+            await message.reply(f"⚠️ Yeh user authorized nahi hai.")
+        else:
+            await auth_collection.delete_one({"user_id": user_id})
+            await message.reply(f"❌ User `{user_id}` ko Unauthorize kar diya gaya hai.")
     else:
         await message.reply("⚠️ Kisi user ke message ko reply karke `/unauth` likhein.")
 
@@ -68,11 +83,11 @@ async def broadcast(client, message: Message):
 async def nsfw_detector(client, message: Message):
     user_id = message.from_user.id
     
-    # Agar user authorized hai ya owner hai, toh kuch delete nahi hoga
-    if user_id in AUTH_USERS or user_id == OWNER_ID:
+    # Agar owner hai ya authorized user hai, toh kuch delete nahi hoga
+    if user_id == OWNER_ID or await is_user_auth(user_id):
         return
 
-    # Yahan NSFW detection logic lagti hai (Filhaal placeholder set hai)
+    # Yahan NSFW detection logic aayegi
     is_nsfw = False 
 
     if is_nsfw:
@@ -82,5 +97,5 @@ async def nsfw_detector(client, message: Message):
         except Exception as e:
             print(f"Error deleting message: {e}")
 
-print("Bot is starting...")
+print("Bot with MongoDB is starting...")
 app.run()
