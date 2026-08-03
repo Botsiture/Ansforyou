@@ -24,7 +24,7 @@ async def is_user_auth(user_id: int) -> bool:
 # Start Command with Photo and Buttons
 @app.on_message(filters.command("start"))
 async def start_handler(client, message: Message):
-    photo_url = "https://envs.sh/X1N.jpg"
+    photo_url = "https://files.catbox.moe/sgo9in.png"
     caption = (
         "**👋 Hello! Main ek Advanced NSFW Remover Bot hoon.**\n\n"
         "Mujhe apne group mein add karein, aur main automatically NSFW photos, videos, stickers & GIFs remove kar dunga!\n\n"
