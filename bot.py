@@ -1,13 +1,13 @@
-import os
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message
 from motor.motor_asyncio import AsyncIOMotorClient
 
-API_ID = int(os.environ.get("API_ID", 0))
-API_HASH = os.environ.get("API_HASH", "")
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
-OWNER_ID = int(os.environ.get("OWNER_ID", 0))
-MONGO_URL = os.environ.get("MONGO_URL", "")
+# Direct Credentials Set
+API_ID = 10658015
+API_HASH = "a0087bca748f86698c53d291c9e5b3af"
+BOT_TOKEN = "7627965170:AAFF3bPiPhX8_EKz0S4nlB5Ah2tWXJIt8Ok"
+OWNER_ID = 7657218453
+MONGO_URL = "mongodb+srv://babychan90132_db_user:kdGnIwXVvozkowt6@cluster0.owyjlla.mongodb.net/?appName=Cluster0"
 
 # MongoDB Database Connection
 mongo_client = AsyncIOMotorClient(MONGO_URL)
@@ -35,11 +35,11 @@ async def start_handler(client, message: Message):
     )
     buttons = InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("🛠 Support", url="https://t.me/your_support_group"),
-            InlineKeyboardButton("📢 Updates", url="https://t.me/your_channel")
+            InlineKeyboardButton("Support", url="https://t.me/anime_group_hai"),
+            InlineKeyboardButton("Update", url="https://t.me/Sand_Village")
         ],
         [
-            InlineKeyboardButton("👑 Owner", user_id=OWNER_ID)
+            InlineKeyboardButton("Owner", user_id=OWNER_ID)
         ]
     ])
     await message.reply_photo(photo=photo_url, caption=caption, reply_markup=buttons)
@@ -97,5 +97,5 @@ async def nsfw_detector(client, message: Message):
         except Exception as e:
             print(f"Error deleting message: {e}")
 
-print("Bot with MongoDB is starting...")
+print("Bot with fixed credentials & MongoDB is starting...")
 app.run()
